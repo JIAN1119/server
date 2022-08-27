@@ -164,33 +164,47 @@ MongoClient.connect('mongodb+srv://JIAN:Mg1234321!@cluster0.agvttyu.mongodb.net/
     //      [7] 회원가입
     //======================================================
 
-    // 가입페이지 라우팅
+    // '/signup' 진입 시 가입페이지 보여준다
     app.get('/signup', function (req, res) {
         res.render('signup.ejs')
     })
 
     // 가입완료 시
     app.post('/signup', function (req, res) {
-        res.render('signupdone.ejs')
-
-        db.collection('counter').findOne({ name: '회원수' }, function (err, result) {
+        
+        // 아이디 중복 체크
+        db.collection('login').findOne({ id: req.body.id }, function (err, result) {
             if (err) { return console.log(err) }
+            // console.log(result.id)
 
-            console.log('아이디 :' + req.body.id)
-            console.log('비밀번호 :' + req.body.pw)
-            // (1) DB의 counter콜렉션의 'name'키가 게시물갯수인 요소 찾아(result), 그것의 totalPost키값을 postsSum 변수에 저장한다
-            var userSum = result.totalUser;
-
-            // (2) 포스트 요청 시 받은 정보를 DB에 저장한다. 이때 DB의 번호는 (1)에서 지정한 변수를 받아 만든다           
-            db.collection('login').insertOne({ _id: (userSum + 1), id: req.body.id, pw: req.body.pw }, function (err, result) {
-                console.log('DB에 회원 정보 생성 완료')
-            })
-
-            // (3) 게시물 갯수 저장해둔 데이터 찾아 1 증가시키도록 한다
-            db.collection('counter').updateOne({ name: '회원수' }, { $inc: { totalUser: 1 } }, function (err, rst) {
-                if (err) { return console.log(err) }
-            })
-        });
+            // 1) 중복X 아이디인 경우
+            if (result == null) {
+                db.collection('counter').findOne({ name: '회원수' }, function (err, result) {
+                    if (err) { return console.log(err) }
+                    
+                    console.log('아이디 :' + req.body.id)
+                    console.log('비밀번호 :' + req.body.pw)
+                    // (1) DB의 counter콜렉션의 'name'키가 게시물갯수인 요소 찾아(result), 그것의 totalPost키값을 postsSum 변수에 저장한다
+                    var userSum = result.totalUser;
+                    
+                    // (2) 포스트 요청 시 받은 정보를 DB에 저장한다. 이때 DB의 번호는 (1)에서 지정한 변수를 받아 만든다           
+                    db.collection('login').insertOne({ _id: (userSum + 1), id: req.body.id, pw: req.body.pw }, function (err, result) {
+                        console.log('DB에 회원 정보 생성 완료')
+                    })
+                    
+                    // (3) 게시물 갯수 저장해둔 데이터 찾아 1 증가시키도록 한다
+                    db.collection('counter').updateOne({ name: '회원수' }, { $inc: { totalUser: 1 } }, function (err, rst) {
+                        if (err) { return console.log(err) }
+                    })
+                    res.render('signupdone.ejs')
+                });
+                // 2) 중복O 아이디인 경우
+            } else {
+                res.send('이미 있는 아이디');
+            
+            }
+        })
+        // 입력 데이터 DB 저장
     })
     /*회원가입하면 과정
     DB내 counter의 회원수 가져와서 변수저장 2 login 콜렉션에 no, id, pw 저장 3 counter 1 증가*/
@@ -202,10 +216,22 @@ MongoClient.connect('mongodb+srv://JIAN:Mg1234321!@cluster0.agvttyu.mongodb.net/
     app.get('/login', function (req, res) {
         res.render('login.ejs')
     })
-    app.post('/login', passport.authenticate('local', { failureRedirect: '/fail' }), function (req, res) {
+    app.post('/login', passport.authenticate('local', { failureRedirect: '/login-fail' }), function (req, res) {
         res.redirect('/')
     });
 
+    app.post('/logout', function(req, res, next) {
+        req.logout(function(err) {
+          if (err) { return next(err); }
+          res.redirect('/');
+        });
+      });
+    })
+
+    app.get('/login-fail', function(req, res){
+        console.log('로그인 실패')
+        res.send('로그인 실패')
+    })
     //======================================================
     //      2.1. 마이페이지 진입 시
     //======================================================
@@ -230,7 +256,7 @@ MongoClient.connect('mongodb+srv://JIAN:Mg1234321!@cluster0.agvttyu.mongodb.net/
         session: true,
         passReqToCallback: false,
     }, function (입력한아이디, 입력한비번, done) {
-        //console.log(입력한아이디, 입력한비번);
+        console.log(입력한아이디, 입력한비번);
         db.collection('login').findOne({ id: 입력한아이디 }, function (에러, 결과) {
             if (에러) return done(에러)
 
@@ -258,4 +284,4 @@ MongoClient.connect('mongodb+srv://JIAN:Mg1234321!@cluster0.agvttyu.mongodb.net/
 
 
 
-});
+// });
