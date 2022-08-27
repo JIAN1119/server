@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <!-- Required meta tags -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.4.1/dist/css/bootstrap.min.css"
+    integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+
+  <!-- 커스텀 CSS -->
+  <link href="/public/index.css" rel="stylesheet">
+
+  <title>할일 리스트</title>
+</head>
+
+<body>
+
+  <%- include('nav.html') %>
+
+    <div class="container">
+      <h2 class="ml-3 my-3">서버에서 가져온 할일 리스트</h2>
+      <ul class="list-group">
+        <% for (var i=0; i < posts.length; i++){ %>
+          <li class="list-group-item">
+            <h4>
+              <%= posts[i].제목 %>
+            </h4>
+            <p>
+              <%= posts[i].날짜 %>
+            </p>
+            <button type="button" class="btn btn-danger delete" data-id="<%= posts[i]._id %>">삭제</button>
+          </li>
+          <% } %>
+      </ul>
+    </div>
+
+
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+
+    <script>
+      // =================================================================================
+      //    [1] 삭제 : 리스트 삭제 버튼 누르면 DB에 해당 데이터 삭제되고 화면에서도 사라진다
+      // =================================================================================
+      // 서버에 ajax delete요청 날리기
+      $('.delete').click(function (e) {
+        var 글번호 = e.target.dataset.id; // e.target : 이벤트 대상(객체)
+        var 누른거 = $(this) // 이벤트 일어나는 곳
+        $.ajax({
+          method: 'delete',
+          url: '/delete',
+          data: { _id: 글번호 }
+        }).done(function (result) {
+
+          // AJAX 성공 시 실행 코드
+          // 누른 것의 부모요소 중 list를 안보이게 한다
+          누른거.parent('li').fadeOut();
+          console.log('삭제요청 성공')
+        }).fail(function (err) {
+          // 실패 시 실행 코드
+          console.log('삭제요청 실패')
+        })
+      })
+      // =================================================================================
+      //    [2] 게시물 누르면 해당하는 상세페이지 보여준다
+      // =================================================================================
+      $('li').click(function (e) {
+
+        // [1] 누른 리스트 내 삭제버튼의 data-id 값 가져온다
+        var selecteItem = e.target
+        var selecteItem2 = e.currentTarget
+        
+        var btnIdx = parseInt($(selecteItem2).children('.delete').get(0).dataset.id)
+        console.log(selecteItem2)
+        console.log(btnIdx)
+
+        // e.stopPropagation()
+        if (selecteItem == selecteItem2){
+          
+          // 해당 Id url로 보낸다 >> by 'server.js' 에 detail:/link AJAX로 get 요청 보내기
+          $.ajax({
+            method: 'get',
+            url: `/detail/${btnIdx}`
+  
+          }).done(function (result) {
+            console.log('상세페이지 get 요청 성공')
+            $(location).attr("href", `/detail/${btnIdx}`);
+          }).fail(function (err) {
+            console.log('상세페이지 get 요청 실패')
+          })
+        }
+          
+
+      })
+
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+      integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+      crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.4.1/dist/js/bootstrap.min.js"
+      integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+      crossorigin="anonymous"></script>
+</body>
+
+</html>
