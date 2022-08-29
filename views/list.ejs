@@ -19,19 +19,43 @@
 <body>
 
   <%- include('nav.html') %>
+    <!-- 검색창 -->
+    <div class="container input-group mb-2">
+      <input class="form-control" id="search-input">
+      <button class="input-group-append btn btn-danger" id="search">검색</button>
+    </div>
 
+    <!-- 할일목록 -->
     <div class="container">
       <h2 class="ml-3 my-3">서버에서 가져온 할일 리스트</h2>
       <ul class="list-group">
         <% for (var i=0; i < posts.length; i++){ %>
           <li class="list-group-item">
+            <div class="row">
+              <div class="col-9">
+                <p>
+                  <%= posts[i]._id %>번째 글
+                </p>
+              </div>
+              <div class="col-3 ms-auto">
+              </div>
+
+            </div>
             <h4>
               <%= posts[i].제목 %>
             </h4>
             <p>
               <%= posts[i].날짜 %>
             </p>
+            <!-- <hr/> -->
+            <p>작성일 : <%= posts[i].작성일 %></p>
+            <p>글쓴이 <%= posts[i].작성자 %></p>
             <button type="button" class="btn btn-danger delete" data-id="<%= posts[i]._id %>">삭제</button>
+            <form action="/chat" method="post">
+              <button type="submit" class="btn btn-danger chat">채팅하기</button>
+
+            </form>
+
           </li>
           <% } %>
       </ul>
@@ -50,21 +74,28 @@
       $('.delete').click(function (e) {
         var 글번호 = e.target.dataset.id; // e.target : 이벤트 대상(객체)
         var 누른거 = $(this) // 이벤트 일어나는 곳
-        $.ajax({
-          method: 'delete',
-          url: '/delete',
-          data: { _id: 글번호 }
-        }).done(function (result) {
+        var selecteItem = e.target
+        var selecteItem2 = e.currentTarget
 
-          // AJAX 성공 시 실행 코드
-          // 누른 것의 부모요소 중 list를 안보이게 한다
-          누른거.parent('li').fadeOut();
-          console.log('삭제요청 성공')
-        }).fail(function (err) {
-          // 실패 시 실행 코드
-          console.log('삭제요청 실패')
-        })
+        if (selecteItem == selecteItem2) {
+          e.stopPropagation()
+          $.ajax({
+            method: 'delete',
+            url: '/delete',
+            data: { _id: 글번호 }
+          }).done(function (result) {
+
+            // AJAX 성공 시 실행 코드
+            // 누른 것의 부모요소 중 list를 안보이게 한다
+            누른거.parent('li').fadeOut();
+            console.log('삭제요청 성공')
+          }).fail(function (err) {
+            // 실패 시 실행 코드
+            console.log('삭제요청 실패')
+          })
+        }
       })
+
       // =================================================================================
       //    [2] 게시물 누르면 해당하는 상세페이지 보여준다
       // =================================================================================
@@ -73,28 +104,31 @@
         // [1] 누른 리스트 내 삭제버튼의 data-id 값 가져온다
         var selecteItem = e.target
         var selecteItem2 = e.currentTarget
-        
+
         var btnIdx = parseInt($(selecteItem2).children('.delete').get(0).dataset.id)
         console.log(selecteItem2)
         console.log(btnIdx)
 
-        // e.stopPropagation()
-        if (selecteItem == selecteItem2){
-          
-          // 해당 Id url로 보낸다 >> by 'server.js' 에 detail:/link AJAX로 get 요청 보내기
-          $.ajax({
-            method: 'get',
-            url: `/detail/${btnIdx}`
-  
-          }).done(function (result) {
-            console.log('상세페이지 get 요청 성공')
-            $(location).attr("href", `/detail/${btnIdx}`);
-          }).fail(function (err) {
-            console.log('상세페이지 get 요청 실패')
-          })
-        }
-          
 
+
+        // 해당 Id url로 보낸다 >> by 'server.js' 에 detail:/link AJAX로 get 요청 보내기
+        $.ajax({
+          method: 'get',
+          url: `/detail/${btnIdx}`
+
+        }).done(function (result) {
+          console.log('상세페이지 get 요청 성공')
+          $(location).attr("href", `/detail/${btnIdx}`);
+        }).fail(function (err) {
+          console.log('상세페이지 get 요청 실패')
+        })
+      })
+      // =================================================================================
+      //    [3] 검색 기능
+      // =================================================================================
+      $('#search').click(function () {
+        var 입력한값 = $('#search-input').val();
+        window.location.replace('search?value=' + 입력한값)
       })
 
     </script>
