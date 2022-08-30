@@ -48,13 +48,14 @@
               <%= posts[i].날짜 %>
             </p>
             <!-- <hr/> -->
-            <p>작성일 : <%= posts[i].작성일 %></p>
-            <p>글쓴이 <%= posts[i].작성자 %></p>
+            <p>작성일 : <%= posts[i].작성일 %>
+            </p>
+            <p>글쓴이 <%= posts[i].작성자 %>
+            </p>
             <button type="button" class="btn btn-danger delete" data-id="<%= posts[i]._id %>">삭제</button>
-            <form action="/chat" method="post">
-              <button type="submit" class="btn btn-danger chat">채팅하기</button>
 
-            </form>
+            <button type="submit" class="btn btn-danger chat" data-id="<%= posts[i]._id %>">채팅하기</button>
+
 
           </li>
           <% } %>
@@ -131,6 +132,34 @@
         window.location.replace('search?value=' + 입력한값)
       })
 
+      // =================================================================================
+      //    [4] 채팅 기능
+      // =================================================================================
+
+      $('.chat').click(function (e) {
+        const postNum = e.target.dataset.id; // e.target : 이벤트 대상(객체)
+        console.log(e.target)
+        console.log(e.currentTarget)
+        if (e.target == e.currentTarget) {
+          e.stopPropagation()
+          
+          console.log('ajax')
+          $.ajax({
+            method: 'post',
+            url: '/chat',
+            data: { _id: postNum }
+
+
+          }).done(function (result) {
+            // AJAX 성공 시 실행 코드
+            console.log('chat으로 post요청 보냄')
+          }).fail(function (err) {
+            // 실패 시 실행 코드
+            console.log('chat으로 post요청 전송 실패')
+
+          })
+        }
+      })
     </script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
       integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"

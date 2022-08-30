@@ -26,6 +26,7 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const session = require('express-session');
 
+
 app.use(session({ secret: '비밀코드', resave: true, saveUninitialized: false }));
 app.use(passport.initialize());
 app.use(passport.session());
@@ -43,7 +44,7 @@ MongoClient.connect(process.env.DB_URL, function (에러, client) {
     if (에러) return console.log(에러);
 
     db = client.db('shop')
-
+    app.db = db
     // 8080포트에 서버 띄운다
     app.listen(process.env.PORT, function () {
         console.log('listening on 8080')
@@ -58,11 +59,6 @@ MongoClient.connect(process.env.DB_URL, function (에러, client) {
         res.render('index.ejs')
         console.log('요청성공')
     })
-
-
-
-
-
 
     //======================================================
     //      2.1. 마이페이지 진입 시
@@ -82,7 +78,7 @@ MongoClient.connect(process.env.DB_URL, function (에러, client) {
     }
 
     //======================================================
-    //      1.2. 로그인시 입력받은 정보 유효성 검증
+    //      1.2. 로그인 시 입력받은 정보 유효성 검증
     //======================================================
     passport.use(new LocalStrategy({
         usernameField: 'id',
@@ -169,7 +165,9 @@ MongoClient.connect(process.env.DB_URL, function (에러, client) {
                     // (1) DB의 counter콜렉션의 'name'키가 게시물갯수인 요소 찾아(result), 그것의 totalPost키값을 postsSum 변수에 저장한다
                     var userSum = result.totalUser;
 
-                    // (2) 포스트 요청 시 받은 정보를 DB에 저장한다. 이때 DB의 번호는 (1)에서 지정한 변수를 받아 만든다           
+                    // (2) 포스트 요청 시 받은 정보ㅁ를 DB에 저장한다. 이때 DB의 번호는 (1)에서 지정한 변수를 받아 만든다  
+
+
                     db.collection('login').insertOne({ _id: (userSum + 1), id: req.body.id, pw: req.body.pw }, function (err, result) {
                         console.log('DB에 회원 정보 생성 완료')
                     })
@@ -195,10 +193,13 @@ MongoClient.connect(process.env.DB_URL, function (에러, client) {
     app.get('/login', function (req, res) {
         res.render('login.ejs')
     })
+
+    // 로그인 성공 시 /mypage 로 이동
     app.post('/login', passport.authenticate('local', { failureRedirect: '/login-fail' }), function (req, res) {
         res.redirect('/mypage')
     });
 
+    // 로그아웃
     app.post('/logout', function (req, res, next) {
         req.logout(function (err) {
             if (err) { return next(err); }
@@ -207,6 +208,7 @@ MongoClient.connect(process.env.DB_URL, function (에러, client) {
     });
 })
 
+// 로그인 실패시 이동 경로
 app.get('/login-fail', function (req, res) {
     console.log('로그인 실패')
     res.send('로그인 실패')
@@ -217,12 +219,23 @@ app.get('/login-fail', function (req, res) {
 // ==========================================================
 
 // 글 작성 페이지 보여준다
-app.get('/write', function (req, res) {
-    res.render('write.ejs')
-    console.log('요청성공')
+app.get('/write', 로그인했니, function (req, res) {
+    console.log(req.user.id)
+    console.log(req.body)
+
+        var writeDate = new Date()
+        const year = writeDate.getFullYear();
+        const month = writeDate.getMonth() + 1;
+        const date = writeDate.getDate();
+
+        writeDate = (`${year}-${month >= 10 ? month : '0' + month}-${date >= 10 ? date : '0' + date}`);
+        console.log(writeDate)
+
+    res.render('write.ejs', { userID: req.user.id, wDate: writeDate })
+    console.log('/write GET 요청성공')
 })
 
-// 글 작성 완료 시 동작 : 1) 서버 측 DB저장, 2) 사용자 측 리스트에 추가
+
 app.post('/add', function (req, res) {
 
     //  [1] 누군가가 /add로 post 요청을 하면, 아래 작업 수행한다
@@ -234,12 +247,12 @@ app.post('/add', function (req, res) {
     console.log('상세내용 :' + req.body.date)
     // console.log(req.user)
 
+
     // (1) DB의 counter콜렉션의 'name'키가 게시물갯수인 요소 찾아(result), 그것의 totalPost키값을 postsSum 변수에 저장한다
     db.collection('counter').findOne({ name: '게시물갯수' }, function (err, result) {
         var postsSum = result.totalPost;
-        var writeDate = new Date()
         // (2) 포스트 요청 시 받은 정보를 DB에 저장한다. 이때 DB의 번호는 (1)에서 지정한 변수를 받아 만든다           
-        db.collection('post').insertOne({ _id: (postsSum + 1), 제목: req.body.title, 날짜: req.body.date, 작성자: req.user.id, 작성일: writeDate }, function (err, result) {
+        db.collection('post').insertOne({ _id: (postsSum + 1), 제목: req.body.title, 날짜: req.body.date, 작성자: req.user.id, 작성일: req.body.writeDate }, function (err, result) {
             console.log('db저장완료')
         })
 
@@ -249,6 +262,7 @@ app.post('/add', function (req, res) {
         })
     });
 })
+
 
 // ==========================================================
 //      [3] 작성한 글 삭제
@@ -274,8 +288,8 @@ app.delete('/delete', function (req, res) {
 
 app.get('/list', function (req, res) {
     //  누군가가 /list로 get요청하면, db저장 내용을 콘솔에 출력하고, 응답으로 list.ejs를 렌더해 보여준다.
-    db.collection('post').find().toArray(function (err, result) {
-        console.log(result)
+    db.collection('post').find().sort({ "_id": -1 }).toArray(function (err, result) {
+        // console.log(result)
         console.log(req.body)
         res.render('list.ejs', { posts: result })
     })
@@ -285,40 +299,49 @@ app.get('/list', function (req, res) {
 //      [4] 목록 상세 내용 보기
 // ==========================================================
 
-app.get('/detail/:id',  function (req, res) {
-    // ---------------------------------------------------------
-    // 누군가 /detail로 get요청 보내면, DB의 데이터를 꽂아 보내준다
-    // url하위경로와 같은 id값을 가진 데이터를 DB에서 찾아, 그 데이터를 detil.ejs에 바인딩하여 출력한다
-    // ---------------------------------------------------------
+app.get('/detail/:id', function (req, res) {
 
+    // url하위경로와 같은 id값을 가진 데이터를 DB에서 찾아, 그 데이터를 detil.ejs에 바인딩하여 렌더해준다
     db.collection('post').findOne({ _id: parseInt(req.params.id) }, function (err, result) {
-        res.render('detail.ejs', { data: result})
         console.log(result);
+        res.render('detail.ejs', { data: result })
 
         if (err) { return console.log(err) }
     })
 })
 
-
-
 // ==========================================================
 //      [5] 작성한 글 수정하기
 // ==========================================================
+// postId : 게시물 정보 postId.작성자 = 작성자 정보
+var postId;
+app.get('/edit/:id', function (req, res) {
+    postId = { _id: parseInt(req.params.id) }
+    console.log(postId)
 
-app.get('/edit/:id', 로그인했니, function (req, res) {
-    db.collection('post').findOne({ _id: parseInt(req.params.id) }, function (err, result) {
+    db.collection('post').findOne(postId, function (err, result) {
         res.render('edit.ejs', { data: result })
         if (err) { return console.log(err) }
     })
 })
 
-function 로그인했니(req, res, next) {
-    if (req.user) {
-        next()
-    } else {
-        res.redirect('/login');
-    }
-}
+// function 로그인했니(req, res, next) {
+//     // 로그인 중인경우
+//     if (req.user) {
+//         // 작성자 != 로그인유저 : 메세지 (유저만 수정 가능)
+//         if(1==1){
+
+//             res.send('작성자만 수정가능')
+//             // 작성자 == 로그인유저 : /다음 단계 진행
+//         } else {
+//             next()
+
+//         }
+//         // 로그인 X : 로그인페이지로
+//     } else {
+//         res.redirect('/login');
+//     }
+// }
 
 app.put('/edit', function (req, res) {
     db.collection('post').updateOne({ _id: parseInt(req.body.id), 작성자: req.user.id }, { $set: { 제목: req.body.title, 날짜: req.body.date } }, function (err, result) {
@@ -328,9 +351,6 @@ app.put('/edit', function (req, res) {
     })
 })
 
-app.use('/shop', require('./routes/shop.js'))
-
-app.use('/board/sub', require('./routes/board.js'))
 
 // ==========================================================
 //      이미지 서버 만들기
@@ -344,28 +364,28 @@ let multer = require('multer');
 // 1. 파일 업로드시 세부 설정
 // 1.1. diskStorage : 하드에 저장한다 (비휘발성)
 var storage = multer.diskStorage({
-// 1.2. 저장 위치 설정
-destination : function(req, file, cb){
-    cb(null, './public/image')
-},
-// 1.2. 저장 시 이름 설정
-    filename : function(req, file, cb){
+    // 1.2. 저장 위치 설정
+    destination: function (req, file, cb) {
+        cb(null, './public/image')
+    },
+    // 1.2. 저장 시 이름 설정
+    filename: function (req, file, cb) {
         cb(null, file.originalname)
     }
 });
 
-var upload = multer({ storage : storage });
+var upload = multer({ storage: storage });
 
-app.get('/upload', function(req, res){
+app.get('/upload', function (req, res) {
     res.render('upload.ejs')
 })
 
-app.post('/upload', upload.single('photo'), function(req, res){
+app.post('/upload', upload.single('photo'), function (req, res) {
     res.send('업로드완료')
 })
 
 // 특정경로로 진입 시 이미지 파일 보내준다
-app.get('/image/:imageName', function(req, res){
+app.get('/image/:imageName', function (req, res) {
     res.sendFile(__dirname + "/public/image/" + req.params.imageName)
 })
 
@@ -373,8 +393,66 @@ app.get('/image/:imageName', function(req, res){
 //      채팅
 // ==========================================================
 
-app.get('/chat', function(req,res){
-    console.log('채팅 신규')
+app.get('/chat', function (req, res) {
     res.render('chat.ejs')
+    console.log('채팅 신규')
 })
 
+app.post('/chat', 로그인했니, function (req, res) {
+
+    // [[3]]
+    // 2) 로그인중이면 유저 이름 넣고, 아니면 로그인 페이지로 이동
+    console.log('서버 : /chat에서 POST요청 감지')
+    var 글번호 = parseInt(req.body._id)
+    console.log(글번호)
+    console.log(req.user.id)
+
+    db.collection('post').findOne({ _id: 글번호 }, function (err, result) {
+        if (err) { return console.log(err) }
+        // 채팅 버튼 누르면 포스트요청 옴. 채팅 버튼 달린 게시물의 작성자 찾기
+        var 작성자2 = result.작성자
+        console.log(result.작성자)
+        var date = new Date()
+        
+        db.collection('chat').insertOne({ member: [req.user.id, 작성자2], 채팅방이름:  '채팅방', 생성일 : date}, function (err, result) {
+            res.send('sd')
+            console.log('채팅방생성완료')
+
+        })
+
+    })
+
+    // chat 콜렉션에 데이터넣기
+})
+
+// 2) 로그인 여부 알아내서, 로그인중이면 유저 이름 넣고, 아니면 로그인 페이지로 이동
+function 로그인했니(req, res, next) {
+    // 1)로그인중이라면 >> [[3]]
+    if (req.user) {
+        next()
+        // 1)로그인중 X
+    } else {
+        res.redirect('/login')
+    }
+}
+
+
+
+// ==========================================================
+// 세션 데이터를 브라우져에서 확인하기 위해 GET /debug 엔드포인트
+// ==========================================================
+
+app.get("/debug", (req, res) => {
+    res.json({
+        "req.session": req.session, // 세션 데이터
+        "req.user": req.user, // 유저 데이터(뒷 부분에서 설명)
+        "req._passport": req._passport, // 패스포트 데이터(뒷 부분에서 설명)
+    })
+})
+
+// ==========================================================
+//      라우팅
+// ==========================================================
+app.use('/shop', require('./routes/shop.js'))
+app.use('/board/sub', require('./routes/board.js'))
+app.use('/test', require('./routes/test.js'))
