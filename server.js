@@ -35,6 +35,11 @@ app.use(passport.session());
 // 서버가 환경변수를 인식하게 한다
 require('dotenv').config()
 
+// socket.io 사용 설정
+const http = require('http').createServer(app);
+const { Server } = require('socket.io');
+const io = new Server(http);
+
 var db;
 
 { useUnifiedTopology: true } // 워닝메세지 제거해준다
@@ -46,7 +51,7 @@ MongoClient.connect(process.env.DB_URL, function (에러, client) {
     db = client.db('shop')
     app.db = db
     // 8080포트에 서버 띄운다
-    app.listen(process.env.PORT, function () {
+    http.listen(process.env.PORT, function () {
         console.log('listening on 8080')
     });
 
@@ -396,37 +401,46 @@ app.get('/chat', 로그인했니, function (req, res) {
     // DB에서 해당 유저 들어간 데이터 뽑아 ejs에 꽂아주기
     db.collection('chat').find({ member: req.user._id }).toArray()
         .then((result) => {
-            res.render('chat.ejs', { data: result })
+            res.render('chat.ejs', { data: result, loginUser: req.user._id })
         })
         .catch((err) => { return console.log(err) })
     console.log('채팅 신규')
 })
 
 app.post('/chat', 로그인했니, function (req, res) {
-
-    // [[3]]
     // 2) 로그인중이면 유저 이름 넣고, 아니면 로그인 페이지로 이동
     console.log('서버 : /chat에서 POST요청 감지')
     var 글번호 = parseInt(req.body._id)
-    console.log(글번호)
 
     db.collection('post').findOne({ _id: 글번호 }, function (err, result) {
-        if (err) { return console.log(err) }
         // 채팅 버튼 누르면 포스트요청 옴. 채팅 버튼 달린 게시물의 작성자 찾기
         var 작성자2 = result.작성자ID
-        var date = new Date()
-        var saveData = {
-            member: [req.user._id, 작성자2],
-            채팅방이름: '채팅방',
-            생성일: date
-        }
+        console.log(작성자2)
+        console.log(req.user._id)
 
-        db.collection('chat').insertOne(saveData).then((result) => {
-            res.send('sd')
-            console.log('채팅방생성완료')
+        db.collection('chat').findOne({ member: [req.user._id, 작성자2] }, function (err, result) {
+            if (result == null) {
+
+                var date = new Date()
+                var saveData = {
+                    member: [req.user._id, 작성자2],
+                    채팅방이름: '채팅방',
+                    생성일: date
+                }
+
+                db.collection('chat').insertOne(saveData).then((result) => {
+                    res.send('sd')
+                    console.log('채팅방생성완료')
+                })
+            } else if (result != null) {
+                console.log('중복방지')
+            }
         })
     })
 })
+
+
+
 
 const { ObjectId } = require('mongodb');
 
@@ -459,26 +473,27 @@ app.get('/message/:id', 로그인했니, function (req, res) {
     db.collection('message').find({ parent: req.params.id }).toArray()
         .then((result) => {
             console.log(result)
+            console.log(req.user._id)
             res.write('event: test\n');
             res.write('data: ' + JSON.stringify(result) + '\n\n');
         })
 
-        // [2] DB변동사항 있을 때 감지해 특정 동작 수행토록한다
-        const pipeline = [
-            // 콜렉션 내 key가 parent인 것만 감지
-            { $match: { 'fullDocument.parent' : req.params.id } }
-        ];
-        // const collection = db.collection('message');
-        const changeStream = db.collection('message').watch(pipeline);
-        
-        changeStream.on('change', (result) => {
-            console.log('DB변경사항감지');
-            var 추가된문서 =[result.fullDocument]
-            console.log(추가된문서);
+    // [2] DB변동사항 있을 때 감지해 특정 동작 수행토록한다
+    const pipeline = [
+        // 콜렉션 내 key가 parent인 것만 감지
+        { $match: { 'fullDocument.parent': req.params.id } }
+    ];
+    // const collection = db.collection('message');
+    const changeStream = db.collection('message').watch(pipeline);
 
-            res.write('event: test\n');
-            res.write(`data: ${JSON.stringify(추가된문서)}\n\n`);
-        });
+    changeStream.on('change', (result) => {
+        console.log('DB변경사항감지');
+        var 추가된문서 = [result.fullDocument]
+        console.log(추가된문서);
+
+        res.write('event: test\n');
+        res.write(`data: ${JSON.stringify(추가된문서)}\n\n`);
+    });
 })
 
 
@@ -493,7 +508,30 @@ function 로그인했니(req, res, next) {
     }
 }
 
+app.get('/socket', function (req, res) {
+    res.render('socket.ejs')
+})
+// 누군가 웹소켓 접속하면 아래 코드 실행해준다
+io.on('connection', function (socket) {
+    console.log('유저접속')
+    console.log(socket.id)
 
+    socket.on('joinroom', function(data){
+        socket.join('room1');
+    })
+
+    socket.on('room1-send', function(data){
+        io.to('room1').emit('broadcast', data)
+    })
+    socket.on('user-send', function (data) {
+        //유저가 데이터 보내면 아래 코드 실행
+        console.log(data)
+        // 유저가 데이터 보내면 답장 보낸다
+        // io.emit('broadcast', data)
+        // 자기 자신에게만 메세지 보이게 하기
+        io.to(socket.id).emit('broadcast', data)
+    })
+})
 
 // ==========================================================
 // 세션 데이터를 브라우져에서 확인하기 위해 GET /debug 엔드포인트

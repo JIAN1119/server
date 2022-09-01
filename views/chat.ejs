@@ -15,7 +15,9 @@
 <body>
   <%- include('nav.html') %>
     <div class="container p-4 detail">
+      <div id="login-user" data-id="<%= loginUser %>">
 
+      </div>
       <div class="row">
         <div class="col-3">
           <ul class="list-group chat-list">
@@ -37,7 +39,9 @@
         <div class="col-9 p-0">
           <div class="chat-room">
             <ul class="list-group chat-content">
-<!-- 채팅메세지 들어갈 곳 -->
+              <!-- 채팅메세지 들어갈 곳 -->
+              <li><span class="chat-box mine">채팅방1 내용</span></li>
+
             </ul>
 
             <div class="input-group">
@@ -57,7 +61,11 @@
       // =======================================================
       var selectedChatRoom;
       var eventSource;
+      var loginUser;
 
+      loginUser = $('#login-user').data('id')
+
+      // console.log(loginUser)
       $('.list-group-item').click(function (e) {
         selectedChatRoom = this.dataset.id;
         console.log(selectedChatRoom)
@@ -76,12 +84,16 @@
           console.log(rcvData);
           // js로 HTML 생성하기
 
-          rcvData.forEach((a)=>{
-            $('.chat-content').append(
-              `<li><span class="chat-box">${a.content}</span></li>`)
+          rcvData.forEach((a) => {
+            if (a.userid == loginUser) {
+              $('.chat-content').append(
+                `<li><span class="chat-box mine bg-danger text-light">${a.content}</span></li>`)
+            } else {
+              $('.chat-content').append(
+                `<li><span class="chat-box">${a.content}</span></li>`)
+            }
           })
         });
-
       });
 
       // 보내기 버튼 누르면 인풋 내용 받아 디비 저장하기
@@ -104,6 +116,8 @@
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
       integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
       crossorigin="anonymous"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
       integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
       crossorigin="anonymous"></script>

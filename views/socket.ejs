@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+  <title>할일 등록</title>
+
+  <!-- 커스텀 CSS -->
+  <link href="/public/index.css" rel="stylesheet">
+
+</head>
+
+<body>
+  <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
+    integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n"
+    crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+    integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+    crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+    integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+    crossorigin="anonymous"></script>
+
+  <div>채팅방</div>
+  <div id="content"></div>
+  <input id="input1">
+  <button id="send">서버에 메세지 보내기</button>
+  <button id="room1">채팅방1 입장</button>
+  <button id="room1-send">채팅방1서 메세지보내기</button>
+  <script>
+    var socket = io();
+    // 클라이언트에서 서버에게 메세지 보냄 : (메세지제목 : 메세지내용)
+    $('#send').click(function () {
+      socket.emit('user-send', $('#input1').val())
+    })
+
+    $('#room1-send').click(function(){
+      socket.emit('room1-send','채팅방1사람들에게')
+    })
+    
+    $('#room1').click(function(){socket.emit('joinroom', "들어갈래")})
+    socket.on('broadcast', function(data){
+      $('#content').append('<div>'+ data + '<div>')
+      console.log(data)
+    })
+  </script>
+</body>
+
+</html>
