@@ -21,6 +21,7 @@ router.post('/', function (req, res) {
         console.log(result.작성자)
     })
     // 2) 로그인 여부 알아내서, 로그인중이면 유저 이름 넣고, 아니면 로그인 페이지로 이동
+
 })
 
 

@@ -2,61 +2,111 @@
 <html>
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+  <title>Document</title>
 
-    <!-- 커스텀 CSS -->
-    <link href="/public/index.css" rel="stylesheet">
-
+  <!-- 커스텀 CSS -->
+  <link href="/public/index.css" rel="stylesheet">
 </head>
 
 <body>
-    <%- include('nav.html') %>
+  <%- include('nav.html') %>
     <div class="container p-4 detail">
 
-        <div class="row">
-          <div class="col-3">
-            <ul class="list-group chat-list">
-              <li class="list-group-item" data-id="">
-                <h6>채팅방1</h6>
-                <h6 class="text-small">채팅방설명</h6>
+      <div class="row">
+        <div class="col-3">
+          <ul class="list-group chat-list">
+            <% for (var i=0; i< data.length ; i++){ %>
+              <li class="list-group-item" data-id="<%= data[i]._id%>">
+                <h6>
+                  <%= data[i].채팅방이름%>
+                    <%= data[i]._id%>
+                </h6>
+                <h6 class="text-small">
+                  <%=data[i].member%>
+                </h6>
               </li>
-              <li class="list-group-item">
-                 <h6>채팅방2</h6>
-                 <h6 class="text-small">채팅방설명</h6>
-               </li>
-             </ul>
-           </div>
-      
-           <div class="col-9 p-0">
-             <div class="chat-room">
-                <ul class="list-group chat-content">
-                  <li><span class="chat-box">채팅방1 내용</span></li>
-                  <li><span class="chat-box">채팅방1 내용</span></li>
-                  <li><span class="chat-box mine">채팅방1 내용</span></li>
-                </ul>
-              <div class="input-group">
-                <input class="form-control" id="chat-input">
-                <button class="btn btn-secondary" id="send">전송</button>
-              </div>
+              <%}%>
+
+          </ul>
+        </div>
+
+        <div class="col-9 p-0">
+          <div class="chat-room">
+            <ul class="list-group chat-content">
+<!-- 채팅메세지 들어갈 곳 -->
+            </ul>
+
+            <div class="input-group">
+              <input class="form-control" id="chat-input">
+              <button class="btn btn-secondary" id="send">전송</button>
             </div>
           </div>
         </div>
-      
-      </div> 
+      </div>
 
-        <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
-            integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n"
-            crossorigin="anonymous"></script>
-        <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
-            integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
-            crossorigin="anonymous"></script>
-        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
-            integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
-            crossorigin="anonymous"></script>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script>
+
+      // =======================================================
+      // 채팅방 리스트 누르면, 해당 채팅방을 parent로 가진 게시물 모두 불러오기
+      // =======================================================
+      var selectedChatRoom;
+      var eventSource;
+
+      $('.list-group-item').click(function (e) {
+        selectedChatRoom = this.dataset.id;
+        console.log(selectedChatRoom)
+        $('.chat-content').html('');
+
+        // 프론트엔드에서 실시간 소통채널 여는법
+
+        // 0) 소통채널 열기 전 이미 열린 것이 있다면 닫아준다
+        if (eventSource != undefined) { eventSource.close() };
+
+        // 1) 채팅방 리스트 누를 때마다 아래 경로로 get요청한다
+        eventSource = new EventSource('/message/' + selectedChatRoom);
+        // 2) 요청후 서버에서 전달되는 데이터 받는다(message콜렉션 내 부모 id 가진 게시물들)
+        eventSource.addEventListener('test', function (e) {
+          var rcvData = JSON.parse(e.data)
+          console.log(rcvData);
+          // js로 HTML 생성하기
+
+          rcvData.forEach((a)=>{
+            $('.chat-content').append(
+              `<li><span class="chat-box">${a.content}</span></li>`)
+          })
+        });
+
+      });
+
+      // 보내기 버튼 누르면 인풋 내용 받아 디비 저장하기
+      $('#send').click((e) => {
+        var 채팅내용 = $('#chat-input').val()
+
+        var 보낼거 = {
+          parent: selectedChatRoom,
+          content: 채팅내용
+        }
+
+        $.post('/message', 보낼거)
+          .then((result) => {
+            console.log('메세지전송완료' + result)
+          })
+          .catch((err) => { return console.log(err) })
+      })
+
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+      integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+      crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+      integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+      crossorigin="anonymous"></script>
 </body>
 
 </html>

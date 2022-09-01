@@ -223,13 +223,13 @@ app.get('/write', 로그인했니, function (req, res) {
     console.log(req.user.id)
     console.log(req.body)
 
-        var writeDate = new Date()
-        const year = writeDate.getFullYear();
-        const month = writeDate.getMonth() + 1;
-        const date = writeDate.getDate();
+    var writeDate = new Date()
+    const year = writeDate.getFullYear();
+    const month = writeDate.getMonth() + 1;
+    const date = writeDate.getDate();
 
-        writeDate = (`${year}-${month >= 10 ? month : '0' + month}-${date >= 10 ? date : '0' + date}`);
-        console.log(writeDate)
+    writeDate = (`${year}-${month >= 10 ? month : '0' + month}-${date >= 10 ? date : '0' + date}`);
+    console.log(writeDate)
 
     res.render('write.ejs', { userID: req.user.id, wDate: writeDate })
     console.log('/write GET 요청성공')
@@ -252,7 +252,7 @@ app.post('/add', function (req, res) {
     db.collection('counter').findOne({ name: '게시물갯수' }, function (err, result) {
         var postsSum = result.totalPost;
         // (2) 포스트 요청 시 받은 정보를 DB에 저장한다. 이때 DB의 번호는 (1)에서 지정한 변수를 받아 만든다           
-        db.collection('post').insertOne({ _id: (postsSum + 1), 제목: req.body.title, 날짜: req.body.date, 작성자: req.user.id, 작성일: req.body.writeDate }, function (err, result) {
+        db.collection('post').insertOne({ _id: (postsSum + 1), 제목: req.body.title, 날짜: req.body.date, 작성자: req.user.id, 작성자ID: req.user._id, 작성일: req.body.writeDate }, function (err, result) {
             console.log('db저장완료')
         })
 
@@ -262,7 +262,6 @@ app.post('/add', function (req, res) {
         })
     });
 })
-
 
 // ==========================================================
 //      [3] 작성한 글 삭제
@@ -393,8 +392,13 @@ app.get('/image/:imageName', function (req, res) {
 //      채팅
 // ==========================================================
 
-app.get('/chat', function (req, res) {
-    res.render('chat.ejs')
+app.get('/chat', 로그인했니, function (req, res) {
+    // DB에서 해당 유저 들어간 데이터 뽑아 ejs에 꽂아주기
+    db.collection('chat').find({ member: req.user._id }).toArray()
+        .then((result) => {
+            res.render('chat.ejs', { data: result })
+        })
+        .catch((err) => { return console.log(err) })
     console.log('채팅 신규')
 })
 
@@ -405,25 +409,78 @@ app.post('/chat', 로그인했니, function (req, res) {
     console.log('서버 : /chat에서 POST요청 감지')
     var 글번호 = parseInt(req.body._id)
     console.log(글번호)
-    console.log(req.user.id)
 
     db.collection('post').findOne({ _id: 글번호 }, function (err, result) {
         if (err) { return console.log(err) }
         // 채팅 버튼 누르면 포스트요청 옴. 채팅 버튼 달린 게시물의 작성자 찾기
-        var 작성자2 = result.작성자
-        console.log(result.작성자)
+        var 작성자2 = result.작성자ID
         var date = new Date()
-        
-        db.collection('chat').insertOne({ member: [req.user.id, 작성자2], 채팅방이름:  '채팅방', 생성일 : date}, function (err, result) {
+        var saveData = {
+            member: [req.user._id, 작성자2],
+            채팅방이름: '채팅방',
+            생성일: date
+        }
+
+        db.collection('chat').insertOne(saveData).then((result) => {
             res.send('sd')
             console.log('채팅방생성완료')
+        })
+    })
+})
 
+const { ObjectId } = require('mongodb');
+
+app.post('/message', function (req, res) {
+    console.log('채팅메세지 신규')
+    console.log(req.body)
+    var chatMsg = {
+        parent: req.body.parent,
+        userid: req.user._id,
+        content: req.body.content,
+        date: new Date()
+    }
+
+    db.collection('message').insertOne(chatMsg)
+        .then((result) => {
+            console.log('채팅메세지 DB저장완료' + result)
+            res.send('DB저장성공')
+        })
+        .catch((err) => { return console.log(err) })
+})
+
+app.get('/message/:id', 로그인했니, function (req, res) {
+    // [1] 클라이언트에서 요청 없어도 데이터 보내줌
+    res.writeHead(200, {
+        "Connection": "keep-alive",
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+    });
+
+    db.collection('message').find({ parent: req.params.id }).toArray()
+        .then((result) => {
+            console.log(result)
+            res.write('event: test\n');
+            res.write('data: ' + JSON.stringify(result) + '\n\n');
         })
 
-    })
+        // [2] DB변동사항 있을 때 감지해 특정 동작 수행토록한다
+        const pipeline = [
+            // 콜렉션 내 key가 parent인 것만 감지
+            { $match: { 'fullDocument.parent' : req.params.id } }
+        ];
+        // const collection = db.collection('message');
+        const changeStream = db.collection('message').watch(pipeline);
+        
+        changeStream.on('change', (result) => {
+            console.log('DB변경사항감지');
+            var 추가된문서 =[result.fullDocument]
+            console.log(추가된문서);
 
-    // chat 콜렉션에 데이터넣기
+            res.write('event: test\n');
+            res.write(`data: ${JSON.stringify(추가된문서)}\n\n`);
+        });
 })
+
 
 // 2) 로그인 여부 알아내서, 로그인중이면 유저 이름 넣고, 아니면 로그인 페이지로 이동
 function 로그인했니(req, res, next) {
